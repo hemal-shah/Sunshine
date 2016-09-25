@@ -58,8 +58,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
     "com.example.android.sunshine.app.ACTION_DATA_UPDATED";
   // Interval at which to sync with the weather, in seconds.
   // 60 seconds (1 minute) * 180 = 3 hours
-  //TODO change the time to 60*180
-  public static final int SYNC_INTERVAL = 6;
+  public static final int SYNC_INTERVAL = 60*180;
   public static final int SYNC_FLEXTIME = SYNC_INTERVAL / 3;
   private static final long DAY_IN_MILLIS = 1000 * 60 * 60 * 24;
   private static final int WEATHER_NOTIFICATION_ID = 3004;
@@ -412,10 +411,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
 
       String lastNotificationKey = context.getString(R.string.pref_last_notification);
       long lastSync = prefs.getLong(lastNotificationKey, 0);
-
-      Log.i("NOtification tag!!!", "notifyWeather: sending notifications from here!!!");
-      //TODO change the value to DAY_IN_MILLIS
-      if (System.currentTimeMillis() - lastSync >= 600) {
+      if (System.currentTimeMillis() - lastSync >= DAY_IN_MILLIS) {
         // Last sync was more than 1 day ago, let's send a notification with the weather.
         String locationQuery = Utility.getPreferredLocation(context);
 
