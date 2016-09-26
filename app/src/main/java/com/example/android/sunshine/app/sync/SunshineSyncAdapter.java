@@ -41,7 +41,9 @@ import com.example.android.sunshine.app.data.WeatherContract;
 import com.example.android.sunshine.app.muzei.WeatherMuzeiSource;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
@@ -67,11 +69,13 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
             "com.example.android.sunshine.app.ACTION_DATA_UPDATED";
     // Interval at which to sync with the weather, in seconds.
     // 60 seconds (1 minute) * 180 = 3 hours
-    public static final int SYNC_INTERVAL = 60 * 180;
+    public static final int SYNC_INTERVAL = 1;
     public static final int SYNC_FLEXTIME = SYNC_INTERVAL / 3;
     private static final long DAY_IN_MILLIS = 1000 * 60 * 60 * 24;
     private static final int WEATHER_NOTIFICATION_ID = 3004;
 
+
+    GoogleApiClient apiClient;
 
     private static final String[] NOTIFY_WEATHER_PROJECTION = new String[]{
             WeatherContract.WeatherEntry.COLUMN_WEATHER_ID,
@@ -235,6 +239,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
         final String OWM_CITY = "city";
         final String OWM_CITY_NAME = "name";
         final String OWM_COORD = "coord";
+
 
         // Location coordinate
         final String OWM_LATITUDE = "lat";
@@ -420,7 +425,11 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
 
             String lastNotificationKey = context.getString(R.string.pref_last_notification);
             long lastSync = prefs.getLong(lastNotificationKey, 0);
-            if (System.currentTimeMillis() - lastSync >= DAY_IN_MILLIS) {
+
+            Log.i(LOG_TAG, "notifyWeather: showing the notification now!!!");
+
+            //TODO seeing for changing the notification.....
+            if (System.currentTimeMillis() - lastSync >= 100) {
                 // Last sync was more than 1 day ago, let's send a notification with the weather.
                 String locationQuery = Utility.getPreferredLocation(context);
 
@@ -466,8 +475,8 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
                     }
                     String title = context.getString(R.string.app_name);
 
-                    String highString = Utility.formatTemperature(context, high);
-                    String lowString = Utility.formatTemperature(context, low);
+                    final String highString = Utility.formatTemperature(context, high);
+                    final String lowString = Utility.formatTemperature(context, low);
 
                     // Define the text of the forecast.
                     String contentText = String.format(context.getString(R.string.format_notification),
@@ -475,11 +484,13 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
                             highString,
                             lowString);
 
-                    GoogleApiClient apiClient = new GoogleApiClient.Builder(context)
+                    apiClient = new GoogleApiClient.Builder(context)
                             .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
                                 @Override
                                 public void onConnected(@Nullable Bundle bundle) {
                                     Log.i(LOG_TAG, "onConnected: ");
+                                    sendDataToWear(highString, lowString);
+
                                 }
 
                                 @Override
@@ -499,13 +510,6 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
 
                     apiClient.connect();
 
-                    PutDataMapRequest dataMap = PutDataMapRequest.create("/weather");
-                    dataMap.getDataMap().putString("high", highString);
-                    dataMap.getDataMap().putString("low", lowString);
-
-                    PutDataRequest request = dataMap.asPutDataRequest();
-                    DataApi.DataItemResult dataItemResult = Wearable.DataApi
-                            .putDataItem(apiClient, request).await();
 
 
                     // NotificationCompatBuilder is a very convenient way to build backward-compatible
@@ -548,6 +552,23 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
                 cursor.close();
             }
         }
+    }
+
+
+    public void sendDataToWear(String high, String low){
+
+        Log.i(LOG_TAG, "sendDataToWear: sending data now!!");
+
+        PutDataMapRequest dataMap = PutDataMapRequest.create("/weather");
+        dataMap.getDataMap().putString("high", high);
+        dataMap.getDataMap().putString("low", low);
+
+        Log.i(LOG_TAG, "sendDataToWear: appended data!");
+
+        PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi.putDataItem(
+                apiClient,
+                dataMap.asPutDataRequest()
+        );
     }
 
     /**

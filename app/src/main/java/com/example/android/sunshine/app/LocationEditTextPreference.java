@@ -74,6 +74,7 @@ public class LocationEditTextPreference extends EditTextPreference {
 
                 // Launch the Place Picker so that the user can specify their location, and then
                 // return the result to SettingsActivity.
+
                 PlacePicker.IntentBuilder builder = new PlacePicker.IntentBuilder();
 
 
