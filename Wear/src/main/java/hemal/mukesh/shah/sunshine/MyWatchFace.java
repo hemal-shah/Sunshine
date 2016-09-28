@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -20,8 +22,10 @@ import android.support.wearable.watchface.WatchFaceStyle;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
+
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
@@ -30,9 +34,11 @@ import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
 
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -50,8 +56,8 @@ public class MyWatchFace extends CanvasWatchFaceService {
             Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD_ITALIC);
 
 
-    String HIGH_TEMP = "NULL";
-    String LOW_TEMP = "NULL";
+    String HIGH_TEMP = "Null", LOW_TEMP = "Null";
+    Bitmap bitmap = null;
 
     private static final String TAG = MyWatchFace.class.getSimpleName();
 
@@ -94,11 +100,11 @@ public class MyWatchFace extends CanvasWatchFaceService {
     }
 
     /**
-     *  The actual class that would update our watch-face and is responsible
-     *  for drawing on the canvas.
+     * The actual class that would update our watch-face and is responsible
+     * for drawing on the canvas.
      */
 
-    private class Engine extends CanvasWatchFaceService.Engine implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener{
+    private class Engine extends CanvasWatchFaceService.Engine implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
         final Handler mUpdateTimeHandler = new EngineHandler(this);
 
@@ -226,6 +232,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         /**
          * A method which is called when the window insets are fixed, meaning
          * it can identify whether the watch is round or square faced.
+         *
          * @param insets Passed on by the system itself, containing data about the face.
          */
         @Override
@@ -276,20 +283,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onTapCommand(int tapType, int x, int y, long eventTime) {
-            switch (tapType) {
-                case TAP_TYPE_TOUCH:
-                    // The user has started touching the screen.
-                    break;
-                case TAP_TYPE_TOUCH_CANCEL:
-                    // The user has started a different gesture or otherwise cancelled the tap.
-                    break;
-                case TAP_TYPE_TAP:
-                    // The user has completed the tap gesture.
-                    // TODO: Add code to handle the tap gesture.
-//                    Toast.makeText(getApplicationContext(), R.string.message, Toast.LENGTH_SHORT)
-//                            .show();
-                    break;
-            }
+            //No current requirements to do anything.
             invalidate();
         }
 
@@ -306,15 +300,22 @@ public class MyWatchFace extends CanvasWatchFaceService {
             long now = System.currentTimeMillis();
             mCalendar.setTimeInMillis(now);
 
-            String text = String.format("%02d:%02d", mCalendar.get(Calendar.HOUR_OF_DAY),
+            String text = String.format(Locale.US, "%02d:%02d", mCalendar.get(Calendar.HOUR_OF_DAY),
                     mCalendar.get(Calendar.MINUTE));
 
-            SimpleDateFormat format = new SimpleDateFormat("EEE, MMM dd yyyy");
+            SimpleDateFormat format = new SimpleDateFormat("EEE, MMM dd yyyy", Locale.US);
             String date = format.format(now);
 
             canvas.drawText(text, xOffset, yOffset, mTextPaint);
             canvas.drawText(date, xOffset, yOffsetDate, mTextPaintDate);
-            canvas.drawText((HIGH_TEMP + "|" + LOW_TEMP), xOffset, yOffsetTemperature, temperaturePaint);
+
+            if(HIGH_TEMP.compareTo("Null") != 0 || LOW_TEMP.compareTo("Null") != 0){
+                canvas.drawText((HIGH_TEMP + "|" + LOW_TEMP), xOffset, yOffsetTemperature, temperaturePaint);
+            }
+
+            if(bitmap != null){
+                canvas.drawBitmap(bitmap, width - 2 * xOffset, yOffset, mTextPaint);
+            }
         }
 
         /**
@@ -330,6 +331,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         /**
          * Based on the visibility, and ambient mode returns true or false,
          * whether the timer should be running or not. Generally applicable when seconds are ticking.
+         *
          * @return Boolean stating seconds should be visible or not.
          */
         private boolean shouldTimerBeRunning() {
@@ -352,37 +354,63 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onConnected(@Nullable Bundle bundle) {
-            Log.i(TAG, "onConnected: Connected");
+            Log.i(TAG, "onConnected: ");
             Wearable.DataApi.addListener(apiClient, new DataApi.DataListener() {
                 @Override
                 public void onDataChanged(DataEventBuffer dataEventBuffer) {
-
+                    Log.i(TAG, "onDataChanged: " + getString(R.string.WEAR_KEY_HIGH));
                     for (DataEvent event : dataEventBuffer) {
                         if (event.getType() == DataEvent.TYPE_CHANGED) {
+                            Log.i(TAG, "onDataChanged: getting the data");
                             DataItem item = event.getDataItem();
-                            if (item.getUri().getPath().compareTo("/weather") == 0) {
+                            if (item.getUri().getPath().compareTo(getString(R.string.WEAR_PATH)) == 0) {
                                 DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
-                                HIGH_TEMP = dataMap.getString("high");
-                                LOW_TEMP = dataMap.getString("low");
-
-                                Log.i(TAG, "onDataChanged: high = " + HIGH_TEMP);
-                                Log.i(TAG, "onDataChanged: low = " + LOW_TEMP);
+                                HIGH_TEMP = dataMap.getString(getString(R.string.WEAR_KEY_HIGH));
+                                LOW_TEMP = dataMap.getString(getString(R.string.WEAR_KEY_LOW));
+                                bitmap = loadBitmapFromAsset(dataMap.getAsset(getString(R.string.WEAR_KEY_ICON)));
                             }
                         }
                     }
+                    //Weather is received, invalidate() so that the watch face is updated!
                     invalidate();
                 }
             });
         }
 
+        /**
+         * Helper method to convert the asset to Bitmap to display.
+         * @param asset Asset file received from the Api Client.
+         * @return Bitmap Derived from the asset file.
+         */
+        private Bitmap loadBitmapFromAsset(Asset asset){
+            if(asset == null)
+                throw new IllegalArgumentException("Asset must not be null!");
+
+            ConnectionResult result =
+                    apiClient.blockingConnect(10000 , TimeUnit.MILLISECONDS);
+
+            if (!result.isSuccess()) {
+                return null;
+            }
+            // convert asset into a file descriptor and block until it's ready
+            InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
+                    apiClient, asset).await().getInputStream();
+            apiClient.disconnect();
+
+            if (assetInputStream == null) {
+                return null;
+            }
+            // decode the stream into a bitmap
+            return BitmapFactory.decodeStream(assetInputStream);
+        }
+
         @Override
         public void onConnectionSuspended(int i) {
-            Log.i(TAG, "onConnectionSuspended: suspended connection!");
+
         }
 
         @Override
         public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-            Log.i(TAG, "onConnectionFailed: failed to connect!");
         }
     }
 }

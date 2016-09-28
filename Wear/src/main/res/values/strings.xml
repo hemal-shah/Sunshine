@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">Sunshine</string>
     <string name="message">Watch face tapped</string>
+  <string name="WEAR_KEY_HIGH">high</string>
+  <string name="WEAR_KEY_LOW">low</string>
+  <string name="WEAR_KEY_ICON">icon</string>
+  <string name="WEAR_PATH">/weather</string>
 </resources>

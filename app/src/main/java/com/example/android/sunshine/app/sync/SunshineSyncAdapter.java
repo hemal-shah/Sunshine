@@ -32,7 +32,6 @@ import android.text.format.Time;
 import android.util.Log;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.util.Util;
 import com.example.android.sunshine.app.BuildConfig;
 import com.example.android.sunshine.app.MainActivity;
 import com.example.android.sunshine.app.R;
@@ -42,10 +41,9 @@ import com.example.android.sunshine.app.muzei.WeatherMuzeiSource;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
-import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.PutDataMapRequest;
-import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
 
 import org.json.JSONArray;
@@ -53,6 +51,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -64,7 +63,7 @@ import java.util.Vector;
 import java.util.concurrent.ExecutionException;
 
 public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
-    public final String LOG_TAG = SunshineSyncAdapter.class.getSimpleName();
+    public final static String LOG_TAG = SunshineSyncAdapter.class.getSimpleName();
     public static final String ACTION_DATA_UPDATED =
             "com.example.android.sunshine.app.ACTION_DATA_UPDATED";
     // Interval at which to sync with the weather, in seconds.
@@ -478,30 +477,36 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
                     final String highString = Utility.formatTemperature(context, high);
                     final String lowString = Utility.formatTemperature(context, low);
 
+                    //Creating the asset to transfer to Wear
+                    Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), iconId);
+                    final Asset iconAsset = createAssetFromBitmap(bitmap);
+
+                    if(iconAsset != null){
+                        Log.i(LOG_TAG, "notifyWeather: Asset is build up");
+                    }
+
                     // Define the text of the forecast.
                     String contentText = String.format(context.getString(R.string.format_notification),
                             desc,
                             highString,
                             lowString);
 
+
                     apiClient = new GoogleApiClient.Builder(context)
                             .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
                                 @Override
                                 public void onConnected(@Nullable Bundle bundle) {
                                     Log.i(LOG_TAG, "onConnected: ");
-                                    sendDataToWear(highString, lowString);
-
+                                    sendDataToWear(highString, lowString, iconAsset);
                                 }
 
                                 @Override
                                 public void onConnectionSuspended(int i) {
-                                    Log.i(LOG_TAG, "onConnectionSuspended: ");
                                 }
                             })
                             .addOnConnectionFailedListener(new GoogleApiClient.OnConnectionFailedListener() {
                                 @Override
                                 public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-                                    Log.i(LOG_TAG, "onConnectionFailed: ");
                                 }
                             })
                             .addApi(Wearable.API)
@@ -547,7 +552,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
                     //refreshing last sync
                     SharedPreferences.Editor editor = prefs.edit();
                     editor.putLong(lastNotificationKey, System.currentTimeMillis());
-                    editor.commit();
+                    editor.apply();
                 }
                 cursor.close();
             }
@@ -555,20 +560,32 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
 
-    public void sendDataToWear(String high, String low){
+    private static Asset createAssetFromBitmap(Bitmap bitmap){
+        final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+        Log.i(LOG_TAG, "createAssetFromBitmap: Sending data back in form of asset.");
+        return Asset.createFromBytes(byteArrayOutputStream.toByteArray());
+    }
 
-        Log.i(LOG_TAG, "sendDataToWear: sending data now!!");
 
-        PutDataMapRequest dataMap = PutDataMapRequest.create("/weather");
-        dataMap.getDataMap().putString("high", high);
-        dataMap.getDataMap().putString("low", low);
+    /**
+     * Helper method to generate MapRequest to send data to Wear.
+     * @param high The high temperature for the day.
+     * @param low The low temperature for the day.
+     * @param iconAsset The corresponding Icon representing the temperature.
+     */
+    private void sendDataToWear(String high, String low, Asset iconAsset){
 
-        Log.i(LOG_TAG, "sendDataToWear: appended data!");
+        PutDataMapRequest dataMap = PutDataMapRequest.create(getContext().getResources().getString(R.string.WEAR_PATH));
+        dataMap.getDataMap().putString(getContext().getResources().getString(R.string.WEAR_KEY_HIGH), high);
+        dataMap.getDataMap().putString(getContext().getResources().getString(R.string.WEAR_KEY_LOW), low);
+        dataMap.getDataMap().putAsset(getContext().getResources().getString(R.string.WEAR_KEY_ICON), iconAsset);
 
         PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi.putDataItem(
                 apiClient,
                 dataMap.asPutDataRequest()
         );
+        Log.i(LOG_TAG, "sendDataToWear: process of sending dat started!");
     }
 
     /**
@@ -724,6 +741,6 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(c);
         SharedPreferences.Editor spe = sp.edit();
         spe.putInt(c.getString(R.string.pref_location_status_key), locationStatus);
-        spe.commit();
+        spe.apply();
     }
 }

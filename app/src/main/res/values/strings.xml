@@ -235,5 +235,9 @@
     <string name="gcm_defaultSenderId" translatable="false"></string>
     <!-- For Google Places API Attributions -->
     <string name="attribution_text">Powered by Google</string>
+  <string name="WEAR_KEY_HIGH">high</string>
+  <string name="WEAR_KEY_LOW">low</string>
+  <string name="WEAR_KEY_ICON">icon</string>
+  <string name="WEAR_PATH">/weather</string>
 
 </resources>
