@@ -61,7 +61,7 @@ import java.net.URL;
 import java.util.Vector;
 import java.util.concurrent.ExecutionException;
 
-public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
+public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
     public final static String LOG_TAG = SunshineSyncAdapter.class.getSimpleName();
     public static final String ACTION_DATA_UPDATED =
             "com.example.android.sunshine.app.ACTION_DATA_UPDATED";
@@ -72,6 +72,8 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
     private static final long DAY_IN_MILLIS = 1000 * 60 * 60 * 24;
     private static final int WEATHER_NOTIFICATION_ID = 3004;
 
+    private String HIGH_TEMP, LOW_TEMP;
+    private Asset iconAsset;
 
     GoogleApiClient apiClient;
 
@@ -88,6 +90,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
     private static final int INDEX_MIN_TEMP = 2;
     private static final int INDEX_SHORT_DESC = 3;
 
+
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({LOCATION_STATUS_OK, LOCATION_STATUS_SERVER_DOWN, LOCATION_STATUS_SERVER_INVALID, LOCATION_STATUS_UNKNOWN, LOCATION_STATUS_INVALID})
     public @interface LocationStatus {
@@ -101,6 +104,14 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
 
     public SunshineSyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
+
+        //Moving construction of api client here!
+        apiClient = new GoogleApiClient.Builder(context)
+                .addApi(Wearable.API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
+        apiClient.connect();
     }
 
     @Override
@@ -427,7 +438,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
             Log.i(LOG_TAG, "notifyWeather: showing the notification now!!!");
 
             //TODO seeing for changing the notification.....
-            if (System.currentTimeMillis() - lastSync >= 100) {
+            if (System.currentTimeMillis() - lastSync >= 1000) {
                 // Last sync was more than 1 day ago, let's send a notification with the weather.
                 String locationQuery = Utility.getPreferredLocation(context);
 
@@ -473,46 +484,18 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
                     }
                     String title = context.getString(R.string.app_name);
 
-                    final String highString = Utility.formatTemperature(context, high);
-                    final String lowString = Utility.formatTemperature(context, low);
+                    HIGH_TEMP = Utility.formatTemperature(context, high);
+                    LOW_TEMP= Utility.formatTemperature(context, low);
 
                     //Creating the asset to transfer to Wear
                     Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), iconId);
-                    final Asset iconAsset = createAssetFromBitmap(bitmap);
-
-                    if (iconAsset != null) {
-                        Log.i(LOG_TAG, "notifyWeather: Asset is build up");
-                    }
+                    iconAsset = createAssetFromBitmap(bitmap);
 
                     // Define the text of the forecast.
                     String contentText = String.format(context.getString(R.string.format_notification),
                             desc,
-                            highString,
-                            lowString);
-
-
-                    apiClient = new GoogleApiClient.Builder(context)
-                            .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
-                                @Override
-                                public void onConnected(@Nullable Bundle bundle) {
-                                    Log.i(LOG_TAG, "onConnected: ");
-                                    sendDataToWear(highString, lowString, iconAsset);
-                                }
-
-                                @Override
-                                public void onConnectionSuspended(int i) {
-                                }
-                            })
-                            .addOnConnectionFailedListener(new GoogleApiClient.OnConnectionFailedListener() {
-                                @Override
-                                public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-                                }
-                            })
-                            .addApi(Wearable.API)
-                            .build();
-
-
-                    apiClient.connect();
+                            HIGH_TEMP,
+                            LOW_TEMP);
 
 
                     // NotificationCompatBuilder is a very convenient way to build backward-compatible
@@ -558,6 +541,24 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
 
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        Log.i(LOG_TAG, "onConnected: ");
+        if(HIGH_TEMP != null && LOW_TEMP != null && iconAsset != null)
+            sendDataToWear(HIGH_TEMP, LOW_TEMP, iconAsset);
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+        Log.i(LOG_TAG, "onConnectionSuspended: ");
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        Log.i(LOG_TAG, "onConnectionFailed: ");
+    }
+
     private static Asset createAssetFromBitmap(Bitmap bitmap) {
         final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
@@ -582,20 +583,6 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
         dataMap.putAsset("icon", iconAsset);
         mapRequest.setUrgent();
         Wearable.DataApi.putDataItem(apiClient, mapRequest.asPutDataRequest());
-
-//        PutDataMapRequest dataMap = PutDataMapRequest.create("/weather");
-//        dataMap.getDataMap().putString("high", high);
-//        dataMap.getDataMap().putString("low", low);
-//        dataMap.getDataMap().putAsset("icon", iconAsset);
-//        dataMap.getDataMap().putLong("time", System.currentTimeMillis());
-//        dataMap.setUrgent();
-//
-//        Wearable.DataApi.putDataItem(apiClient, dataMap.asPutDataRequest());
-
-//        PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi.putDataItem(
-//                apiClient,
-//                dataMap.asPutDataRequest()
-//        );
         Log.i(LOG_TAG, "sendDataToWear: process of sending data started!");
     }
 

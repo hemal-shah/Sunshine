@@ -1,4 +1,4 @@
-package com.example.android.sunshine;
+package com.example.android.sunshine.app;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -355,24 +355,31 @@ public class MyWatchFace extends CanvasWatchFaceService {
         @Override
         public void onConnected(@Nullable Bundle bundle) {
             Log.i(TAG, "onConnected: ");
+
+
+
             Wearable.DataApi.addListener(apiClient, new DataApi.DataListener() {
                 @Override
                 public void onDataChanged(DataEventBuffer dataEventBuffer) {
-                    Log.i(TAG, "onDataChanged: " + getString(R.string.WEAR_KEY_HIGH));
-                    for (DataEvent event : dataEventBuffer) {
-                        Log.i(TAG, "onDataChanged: looping through the dataBuffer");
-                        if (event.getType() == DataEvent.TYPE_CHANGED) {
-                            Log.i(TAG, "onDataChanged: getting the data");
+                    Log.i(TAG, "onDataChanged: into the method..");
+                    for(DataEvent event : dataEventBuffer){
+                        Log.i(TAG, "onDataChanged: looping now!");
+                        if(event.getType() == DataEvent.TYPE_CHANGED){
                             DataItem item = event.getDataItem();
-                            if (item.getUri().getPath().compareTo("/weather") == 0) {
+                            Log.i(TAG, "onDataChanged: the data is changed");
+                            if(item.getUri().getPath().equals("/weather")){
                                 DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
                                 HIGH_TEMP = dataMap.getString("high");
                                 LOW_TEMP = dataMap.getString("low");
                                 bitmap = loadBitmapFromAsset(dataMap.getAsset("icon"));
+                                Log.i(TAG, "onDataChanged: high = " + HIGH_TEMP);
+                                Log.i(TAG, "onDataChanged: low = " + LOW_TEMP);
+                                Log.i(TAG, "onDataChanged: bitmap = " + bitmap.getRowBytes());
                             }
+                        } else if(event.getType() == DataEvent.TYPE_DELETED){
+                            Log.i(TAG, "onDataChanged: Data deleted!");
                         }
                     }
-                    //Weather is received, invalidate() so that the watch face is updated!
                     invalidate();
                 }
             });
