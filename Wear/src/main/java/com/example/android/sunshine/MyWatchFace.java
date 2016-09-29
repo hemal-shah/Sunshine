@@ -1,4 +1,4 @@
-package hemal.mukesh.shah.sunshine;
+package com.example.android.sunshine;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -178,6 +178,8 @@ public class MyWatchFace extends CanvasWatchFaceService {
             temperaturePaint.setAntiAlias(true);
 
 
+            apiClient.connect();
+
             mCalendar = Calendar.getInstance();
         }
 
@@ -308,12 +310,10 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
             canvas.drawText(text, xOffset, yOffset, mTextPaint);
             canvas.drawText(date, xOffset, yOffsetDate, mTextPaintDate);
+            canvas.drawText((HIGH_TEMP + "|" + LOW_TEMP), xOffset, yOffsetTemperature, temperaturePaint);
 
-            if(HIGH_TEMP.compareTo("Null") != 0 || LOW_TEMP.compareTo("Null") != 0){
-                canvas.drawText((HIGH_TEMP + "|" + LOW_TEMP), xOffset, yOffsetTemperature, temperaturePaint);
-            }
 
-            if(bitmap != null){
+            if (bitmap != null) {
                 canvas.drawBitmap(bitmap, width - 2 * xOffset, yOffset, mTextPaint);
             }
         }
@@ -360,14 +360,15 @@ public class MyWatchFace extends CanvasWatchFaceService {
                 public void onDataChanged(DataEventBuffer dataEventBuffer) {
                     Log.i(TAG, "onDataChanged: " + getString(R.string.WEAR_KEY_HIGH));
                     for (DataEvent event : dataEventBuffer) {
+                        Log.i(TAG, "onDataChanged: looping through the dataBuffer");
                         if (event.getType() == DataEvent.TYPE_CHANGED) {
                             Log.i(TAG, "onDataChanged: getting the data");
                             DataItem item = event.getDataItem();
-                            if (item.getUri().getPath().compareTo(getString(R.string.WEAR_PATH)) == 0) {
+                            if (item.getUri().getPath().compareTo("/weather") == 0) {
                                 DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
-                                HIGH_TEMP = dataMap.getString(getString(R.string.WEAR_KEY_HIGH));
-                                LOW_TEMP = dataMap.getString(getString(R.string.WEAR_KEY_LOW));
-                                bitmap = loadBitmapFromAsset(dataMap.getAsset(getString(R.string.WEAR_KEY_ICON)));
+                                HIGH_TEMP = dataMap.getString("high");
+                                LOW_TEMP = dataMap.getString("low");
+                                bitmap = loadBitmapFromAsset(dataMap.getAsset("icon"));
                             }
                         }
                     }
@@ -379,15 +380,16 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
         /**
          * Helper method to convert the asset to Bitmap to display.
+         *
          * @param asset Asset file received from the Api Client.
          * @return Bitmap Derived from the asset file.
          */
-        private Bitmap loadBitmapFromAsset(Asset asset){
-            if(asset == null)
+        private Bitmap loadBitmapFromAsset(Asset asset) {
+            if (asset == null)
                 throw new IllegalArgumentException("Asset must not be null!");
 
             ConnectionResult result =
-                    apiClient.blockingConnect(10000 , TimeUnit.MILLISECONDS);
+                    apiClient.blockingConnect(10000, TimeUnit.MILLISECONDS);
 
             if (!result.isSuccess()) {
                 return null;

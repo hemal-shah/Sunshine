@@ -40,9 +40,8 @@ import com.example.android.sunshine.app.data.WeatherContract;
 import com.example.android.sunshine.app.muzei.WeatherMuzeiSource;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.wearable.Asset;
-import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.Wearable;
 
@@ -481,7 +480,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
                     Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), iconId);
                     final Asset iconAsset = createAssetFromBitmap(bitmap);
 
-                    if(iconAsset != null){
+                    if (iconAsset != null) {
                         Log.i(LOG_TAG, "notifyWeather: Asset is build up");
                     }
 
@@ -514,7 +513,6 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
 
 
                     apiClient.connect();
-
 
 
                     // NotificationCompatBuilder is a very convenient way to build backward-compatible
@@ -560,7 +558,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
 
-    private static Asset createAssetFromBitmap(Bitmap bitmap){
+    private static Asset createAssetFromBitmap(Bitmap bitmap) {
         final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
         Log.i(LOG_TAG, "createAssetFromBitmap: Sending data back in form of asset.");
@@ -570,22 +568,35 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
 
     /**
      * Helper method to generate MapRequest to send data to Wear.
-     * @param high The high temperature for the day.
-     * @param low The low temperature for the day.
+     *
+     * @param high      The high temperature for the day.
+     * @param low       The low temperature for the day.
      * @param iconAsset The corresponding Icon representing the temperature.
      */
-    private void sendDataToWear(String high, String low, Asset iconAsset){
+    private void sendDataToWear(String high, String low, Asset iconAsset) {
+        PutDataMapRequest mapRequest = PutDataMapRequest.create("/weather");
+        DataMap dataMap = mapRequest.getDataMap();
+        dataMap.putLong("time", System.currentTimeMillis());
+        dataMap.putString("high", high);
+        dataMap.putString("low", low);
+        dataMap.putAsset("icon", iconAsset);
+        mapRequest.setUrgent();
+        Wearable.DataApi.putDataItem(apiClient, mapRequest.asPutDataRequest());
 
-        PutDataMapRequest dataMap = PutDataMapRequest.create(getContext().getResources().getString(R.string.WEAR_PATH));
-        dataMap.getDataMap().putString(getContext().getResources().getString(R.string.WEAR_KEY_HIGH), high);
-        dataMap.getDataMap().putString(getContext().getResources().getString(R.string.WEAR_KEY_LOW), low);
-        dataMap.getDataMap().putAsset(getContext().getResources().getString(R.string.WEAR_KEY_ICON), iconAsset);
+//        PutDataMapRequest dataMap = PutDataMapRequest.create("/weather");
+//        dataMap.getDataMap().putString("high", high);
+//        dataMap.getDataMap().putString("low", low);
+//        dataMap.getDataMap().putAsset("icon", iconAsset);
+//        dataMap.getDataMap().putLong("time", System.currentTimeMillis());
+//        dataMap.setUrgent();
+//
+//        Wearable.DataApi.putDataItem(apiClient, dataMap.asPutDataRequest());
 
-        PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi.putDataItem(
-                apiClient,
-                dataMap.asPutDataRequest()
-        );
-        Log.i(LOG_TAG, "sendDataToWear: process of sending dat started!");
+//        PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi.putDataItem(
+//                apiClient,
+//                dataMap.asPutDataRequest()
+//        );
+        Log.i(LOG_TAG, "sendDataToWear: process of sending data started!");
     }
 
     /**
