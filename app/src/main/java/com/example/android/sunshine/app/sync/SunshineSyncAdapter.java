@@ -105,12 +105,13 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
     public SunshineSyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
 
-        //Moving construction of api client here!
+        //Moving construction of api client here, based on a post in community.
         apiClient = new GoogleApiClient.Builder(context)
                 .addApi(Wearable.API)
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
                 .build();
+
         apiClient.connect();
     }
 
@@ -438,7 +439,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
             Log.i(LOG_TAG, "notifyWeather: showing the notification now!!!");
 
             //TODO seeing for changing the notification.....
-            if (System.currentTimeMillis() - lastSync >= 1000) {
+            if (System.currentTimeMillis() - lastSync >= 100) {
                 // Last sync was more than 1 day ago, let's send a notification with the weather.
                 String locationQuery = Utility.getPreferredLocation(context);
 
@@ -497,6 +498,9 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
                             HIGH_TEMP,
                             LOW_TEMP);
 
+//                    sendDataToWear(HIGH_TEMP, LOW_TEMP, iconAsset);
+
+                    onConnected(null);
 
                     // NotificationCompatBuilder is a very convenient way to build backward-compatible
                     // notifications.  Just throw in some data.
