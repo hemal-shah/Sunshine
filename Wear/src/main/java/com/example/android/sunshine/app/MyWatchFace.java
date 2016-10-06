@@ -371,10 +371,10 @@ public class MyWatchFace extends CanvasWatchFaceService {
                                 DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
                                 HIGH_TEMP = dataMap.getString("high");
                                 LOW_TEMP = dataMap.getString("low");
-                                bitmap = loadBitmapFromAsset(dataMap.getAsset("icon"));
+//                                bitmap = loadBitmapFromAsset(dataMap.getAsset("icon"));
                                 Log.i(TAG, "onDataChanged: high = " + HIGH_TEMP);
                                 Log.i(TAG, "onDataChanged: low = " + LOW_TEMP);
-                                Log.i(TAG, "onDataChanged: bitmap = " + bitmap.getRowBytes());
+//                                Log.i(TAG, "onDataChanged: bitmap = " + bitmap.getRowBytes());
                             }
                         } else if(event.getType() == DataEvent.TYPE_DELETED){
                             Log.i(TAG, "onDataChanged: Data deleted!");
@@ -396,7 +396,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
                 throw new IllegalArgumentException("Asset must not be null!");
 
             ConnectionResult result =
-                    apiClient.blockingConnect(10000, TimeUnit.MILLISECONDS);
+                    apiClient.blockingConnect(1000, TimeUnit.MILLISECONDS);
 
             if (!result.isSuccess()) {
                 return null;

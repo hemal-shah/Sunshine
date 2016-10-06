@@ -584,7 +584,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
         dataMap.putLong("time", System.currentTimeMillis());
         dataMap.putString("high", high);
         dataMap.putString("low", low);
-        dataMap.putAsset("icon", iconAsset);
+//        dataMap.putAsset("icon", iconAsset);
         mapRequest.setUrgent();
         Wearable.DataApi.putDataItem(apiClient, mapRequest.asPutDataRequest());
         Log.i(LOG_TAG, "sendDataToWear: process of sending data started!");
