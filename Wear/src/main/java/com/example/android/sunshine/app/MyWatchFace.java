@@ -19,7 +19,6 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
-import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
@@ -312,7 +311,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
             canvas.drawText(date, xOffset, yOffsetDate, mTextPaintDate);
             canvas.drawText((HIGH_TEMP + "|" + LOW_TEMP), xOffset, yOffsetTemperature, temperaturePaint);
 
-
             if (bitmap != null) {
                 canvas.drawBitmap(bitmap, width - 2 * xOffset, yOffset, mTextPaint);
             }
@@ -354,63 +352,51 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onConnected(@Nullable Bundle bundle) {
-            Log.i(TAG, "onConnected: ");
-
-
 
             Wearable.DataApi.addListener(apiClient, new DataApi.DataListener() {
                 @Override
                 public void onDataChanged(DataEventBuffer dataEventBuffer) {
-                    Log.i(TAG, "onDataChanged: into the method..");
                     for(DataEvent event : dataEventBuffer){
-                        Log.i(TAG, "onDataChanged: looping now!");
                         if(event.getType() == DataEvent.TYPE_CHANGED){
                             DataItem item = event.getDataItem();
-                            Log.i(TAG, "onDataChanged: the data is changed");
                             if(item.getUri().getPath().equals("/weather")){
-                                DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
+                                final DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
                                 HIGH_TEMP = dataMap.getString("high");
                                 LOW_TEMP = dataMap.getString("low");
-//                                bitmap = loadBitmapFromAsset(dataMap.getAsset("icon"));
-                                Log.i(TAG, "onDataChanged: high = " + HIGH_TEMP);
-                                Log.i(TAG, "onDataChanged: low = " + LOW_TEMP);
-//                                Log.i(TAG, "onDataChanged: bitmap = " + bitmap.getRowBytes());
+
+                                new Thread(new Runnable() {
+                                    @Override
+                                    public void run() {
+
+                                        Asset asset = dataMap.getAsset("icon");
+                                        if (asset == null)
+                                            throw new IllegalArgumentException("Asset must not be null!");
+
+                                        ConnectionResult result =
+                                                apiClient.blockingConnect(10000, TimeUnit.MILLISECONDS);
+
+                                        if (!result.isSuccess()) {
+                                            return ;
+                                        }
+                                        // convert asset into a file descriptor and block until it's ready
+                                        InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
+                                                apiClient, asset).await().getInputStream();
+//                                        apiClient.disconnect();
+
+                                        if (assetInputStream == null) {
+                                            return ;
+                                        }
+                                        // decode the stream into a bitmap
+                                        bitmap = BitmapFactory.decodeStream(assetInputStream);
+                                        invalidate();
+                                    }
+                                }).start();
                             }
-                        } else if(event.getType() == DataEvent.TYPE_DELETED){
-                            Log.i(TAG, "onDataChanged: Data deleted!");
                         }
                     }
                     invalidate();
                 }
             });
-        }
-
-        /**
-         * Helper method to convert the asset to Bitmap to display.
-         *
-         * @param asset Asset file received from the Api Client.
-         * @return Bitmap Derived from the asset file.
-         */
-        private Bitmap loadBitmapFromAsset(Asset asset) {
-            if (asset == null)
-                throw new IllegalArgumentException("Asset must not be null!");
-
-            ConnectionResult result =
-                    apiClient.blockingConnect(1000, TimeUnit.MILLISECONDS);
-
-            if (!result.isSuccess()) {
-                return null;
-            }
-            // convert asset into a file descriptor and block until it's ready
-            InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
-                    apiClient, asset).await().getInputStream();
-            apiClient.disconnect();
-
-            if (assetInputStream == null) {
-                return null;
-            }
-            // decode the stream into a bitmap
-            return BitmapFactory.decodeStream(assetInputStream);
         }
 
         @Override

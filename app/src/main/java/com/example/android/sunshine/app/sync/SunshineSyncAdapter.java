@@ -67,7 +67,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
             "com.example.android.sunshine.app.ACTION_DATA_UPDATED";
     // Interval at which to sync with the weather, in seconds.
     // 60 seconds (1 minute) * 180 = 3 hours
-    public static final int SYNC_INTERVAL = 1;
+    public static final int SYNC_INTERVAL = 60 * 180 ;
     public static final int SYNC_FLEXTIME = SYNC_INTERVAL / 3;
     private static final long DAY_IN_MILLIS = 1000 * 60 * 60 * 24;
     private static final int WEATHER_NOTIFICATION_ID = 3004;
@@ -117,7 +117,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
 
     @Override
     public void onPerformSync(Account account, Bundle extras, String authority, ContentProviderClient provider, SyncResult syncResult) {
-        Log.d(LOG_TAG, "Starting sync");
+
 
         // We no longer need just the location String, but also potentially the latitude and
         // longitude, in case we are syncing based on a new Place Picker API result.
@@ -378,8 +378,6 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
 
                 cVVector.add(weatherValues);
             }
-
-            int inserted = 0;
             // add to database
             if (cVVector.size() > 0) {
                 ContentValues[] cvArray = new ContentValues[cVVector.size()];
@@ -395,11 +393,10 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
                 updateMuzei();
                 notifyWeather();
             }
-            Log.d(LOG_TAG, "Sync Complete. " + cVVector.size() + " Inserted");
             setLocationStatus(getContext(), LOCATION_STATUS_OK);
 
         } catch (JSONException e) {
-            Log.e(LOG_TAG, e.getMessage(), e);
+
             e.printStackTrace();
             setLocationStatus(getContext(), LOCATION_STATUS_SERVER_INVALID);
         }
@@ -436,9 +433,9 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
             String lastNotificationKey = context.getString(R.string.pref_last_notification);
             long lastSync = prefs.getLong(lastNotificationKey, 0);
 
-            Log.i(LOG_TAG, "notifyWeather: showing the notification now!!!");
 
-            //TODO seeing for changing the notification.....
+
+            //TODO change by day_in_millis
             if (System.currentTimeMillis() - lastSync >= 100) {
                 // Last sync was more than 1 day ago, let's send a notification with the weather.
                 String locationQuery = Utility.getPreferredLocation(context);
@@ -491,14 +488,14 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
                     //Creating the asset to transfer to Wear
                     Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), iconId);
                     iconAsset = createAssetFromBitmap(bitmap);
+                    if(iconAsset != null)
+                        Log.i(LOG_TAG, "notifyWeather: icon asset is not null");
 
                     // Define the text of the forecast.
                     String contentText = String.format(context.getString(R.string.format_notification),
                             desc,
                             HIGH_TEMP,
                             LOW_TEMP);
-
-//                    sendDataToWear(HIGH_TEMP, LOW_TEMP, iconAsset);
 
                     onConnected(null);
 
@@ -564,9 +561,10 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
     }
 
     private static Asset createAssetFromBitmap(Bitmap bitmap) {
+        Log.i(LOG_TAG, "createAssetFromBitmap: creating asset!");
         final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
-        Log.i(LOG_TAG, "createAssetFromBitmap: Sending data back in form of asset.");
+        Log.i(LOG_TAG, "createAssetFromBitmap: bitmap compressed, returning");
         return Asset.createFromBytes(byteArrayOutputStream.toByteArray());
     }
 
@@ -584,10 +582,9 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
         dataMap.putLong("time", System.currentTimeMillis());
         dataMap.putString("high", high);
         dataMap.putString("low", low);
-//        dataMap.putAsset("icon", iconAsset);
+        dataMap.putAsset("icon", iconAsset);
         mapRequest.setUrgent();
         Wearable.DataApi.putDataItem(apiClient, mapRequest.asPutDataRequest());
-        Log.i(LOG_TAG, "sendDataToWear: process of sending data started!");
     }
 
     /**
