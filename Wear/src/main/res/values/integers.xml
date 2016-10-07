@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <integer name="temp_square">35</integer>
+  <integer name="temp_round">45</integer>
+  <integer name="cutoff_round">25</integer>
+  <integer name="cutoff_square">15</integer>
+</resources>

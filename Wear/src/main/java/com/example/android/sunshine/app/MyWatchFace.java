@@ -19,6 +19,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
@@ -54,6 +55,8 @@ public class MyWatchFace extends CanvasWatchFaceService {
     private static final Typeface BOLD_TYPEFACE =
             Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD_ITALIC);
 
+
+    private int roundOffset;
 
     String HIGH_TEMP = "Null", LOW_TEMP = "Null";
     Bitmap bitmap = null;
@@ -139,6 +142,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
 
+            Log.i(TAG, "onCreate: ");
             context = getBaseContext();
 
             //specifying what kind of watchface you are building.
@@ -171,7 +175,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mTextPaintDate.setAntiAlias(true);
 
             temperaturePaint = new Paint();
-            temperaturePaint.setTextSize(35);
             temperaturePaint.setTypeface(BOLD_TYPEFACE);
             temperaturePaint.setColor(resources.getColor(R.color.digital_text));
             temperaturePaint.setAntiAlias(true);
@@ -241,16 +244,20 @@ public class MyWatchFace extends CanvasWatchFaceService {
             super.onApplyWindowInsets(insets);
 
             Resources resources = MyWatchFace.this.getResources();
-            boolean isRound = insets.isRound();
-
-            float textSize = resources.getDimension(isRound
-                    ? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
-
-            xOffset = resources.getDimension(
-                    isRound ? R.dimen.digital_x_offset_round : R.dimen.digital_x_offset);
-
-
-            mTextPaintDate.setTextSize(textSize - 15);
+            float textSize;
+            if(insets.isRound()){
+                textSize = resources.getDimension(R.dimen.digital_text_size_round);
+                xOffset = resources.getDimension(R.dimen.digital_x_offset_round);
+                mTextPaintDate.setTextSize(textSize - resources.getInteger(R.integer.cutoff_round));
+                temperaturePaint.setTextSize(resources.getInteger(R.integer.temp_round));
+                roundOffset = 20;
+            } else {
+                textSize = resources.getDimension(R.dimen.digital_text_size);
+                xOffset = resources.getDimension(R.dimen.digital_x_offset);
+                mTextPaintDate.setTextSize(textSize - resources.getInteger(R.integer.cutoff_square));
+                temperaturePaint.setTextSize(resources.getInteger(R.integer.temp_square));
+                roundOffset = 0;
+            }
             mTextPaint.setTextSize(textSize);
         }
 
@@ -307,12 +314,12 @@ public class MyWatchFace extends CanvasWatchFaceService {
             SimpleDateFormat format = new SimpleDateFormat("EEE, MMM dd yyyy", Locale.US);
             String date = format.format(now);
 
-            canvas.drawText(text, xOffset, yOffset, mTextPaint);
-            canvas.drawText(date, xOffset, yOffsetDate, mTextPaintDate);
-            canvas.drawText((HIGH_TEMP + "|" + LOW_TEMP), xOffset, yOffsetTemperature, temperaturePaint);
+            canvas.drawText(text, xOffset, yOffset + roundOffset, mTextPaint);
+            canvas.drawText(date, xOffset, yOffsetDate + roundOffset, mTextPaintDate);
+            canvas.drawText((HIGH_TEMP + " | " + LOW_TEMP), xOffset * 2, yOffsetTemperature + roundOffset, temperaturePaint);
 
             if (bitmap != null) {
-                canvas.drawBitmap(bitmap, width - 2 * xOffset, yOffset, mTextPaint);
+                canvas.drawBitmap(bitmap, width - (3*xOffset) + (2*roundOffset) , roundOffset * 4, temperaturePaint);
             }
         }
 
@@ -356,10 +363,10 @@ public class MyWatchFace extends CanvasWatchFaceService {
             Wearable.DataApi.addListener(apiClient, new DataApi.DataListener() {
                 @Override
                 public void onDataChanged(DataEventBuffer dataEventBuffer) {
-                    for(DataEvent event : dataEventBuffer){
-                        if(event.getType() == DataEvent.TYPE_CHANGED){
+                    for (DataEvent event : dataEventBuffer) {
+                        if (event.getType() == DataEvent.TYPE_CHANGED) {
                             DataItem item = event.getDataItem();
-                            if(item.getUri().getPath().equals("/weather")){
+                            if (item.getUri().getPath().equals("/weather")) {
                                 final DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
                                 HIGH_TEMP = dataMap.getString("high");
                                 LOW_TEMP = dataMap.getString("low");
@@ -376,15 +383,17 @@ public class MyWatchFace extends CanvasWatchFaceService {
                                                 apiClient.blockingConnect(10000, TimeUnit.MILLISECONDS);
 
                                         if (!result.isSuccess()) {
-                                            return ;
+                                            return;
                                         }
                                         // convert asset into a file descriptor and block until it's ready
                                         InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
                                                 apiClient, asset).await().getInputStream();
+
+                                        //TODO @Coach plese consider the following comment based on my query.
 //                                        apiClient.disconnect();
 
                                         if (assetInputStream == null) {
-                                            return ;
+                                            return;
                                         }
                                         // decode the stream into a bitmap
                                         bitmap = BitmapFactory.decodeStream(assetInputStream);
