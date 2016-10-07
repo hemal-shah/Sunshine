@@ -389,7 +389,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
                                         InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
                                                 apiClient, asset).await().getInputStream();
 
-                                        //TODO @Coach plese consider the following comment based on my query.
+                                        //TODO @Coach please consider the following comment based on my query.
 //                                        apiClient.disconnect();
 
                                         if (assetInputStream == null) {
